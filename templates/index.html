@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>College Complaint Management System</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f4f7fc;
+            color: #333;
+        }
+
+        header {
+            background: #163b75;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        header h1 {
+            margin-bottom: 8px;
+        }
+
+        nav {
+            background: #102b55;
+            padding: 15px;
+            text-align: center;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin: 0 18px;
+            font-weight: bold;
+        }
+
+        nav a:hover {
+            color: #ffcc00;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 35px auto;
+            padding: 0 15px;
+        }
+
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        h2 {
+            color: #163b75;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin: 15px 0 7px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            background: #163b75;
+            color: white;
+            border: none;
+            padding: 13px 22px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 18px;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background: #245db3;
+        }
+
+        .complaint {
+            background: #f0f5ff;
+            padding: 15px;
+            margin-top: 12px;
+            border-left: 4px solid #163b75;
+            border-radius: 5px;
+        }
+
+        .status {
+            color: #ad6800;
+            font-weight: bold;
+        }
+
+        .message {
+            margin-top: 15px;
+            color: green;
+            font-weight: bold;
+        }
+
+        footer {
+            text-align: center;
+            background: #102b55;
+            color: white;
+            padding: 18px;
+            margin-top: 30px;
+        }
+
+        @media (max-width: 600px) {
+            nav a {
+                display: inline-block;
+                margin: 8px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>College Complaint Management System</h1>
+    <p>Submit, Manage and Track Student Complaints</p>
+</header>
+
+<nav>
+    <a href="#home">Home</a>
+    <a href="#submit">Submit Complaint</a>
+    <a href="#track">Track Complaint</a>
+</nav>
+
+<main class="container" id="home">
+
+    <section class="card" id="submit">
+        <h2>Submit Your Complaint</h2>
+
+        <form id="complaintForm">
+
+            <label for="name">Student Name</label>
+            <input type="text" id="name"
+                   placeholder="Enter your name" required>
+
+            <label for="studentId">Student ID</label>
+            <input type="text" id="studentId"
+                   placeholder="Enter student ID" required>
+
+            <label for="email">Email Address</label>
+            <input type="email" id="email"
+                   placeholder="Enter college email" required>
+
+            <label for="department">Department</label>
+            <select id="department" required>
+                <option value="">Select Department</option>
+                <option>CSE</option>
+                <option>IT</option>
+                <option>ECE</option>
+                <option>Mechanical</option>
+                <option>Civil</option>
+                <option>Other</option>
+            </select>
+
+            <label for="category">Complaint Category</label>
+            <select id="category" required>
+                <option value="">Select Category</option>
+                <option>Academic</option>
+                <option>Hostel</option>
+                <option>Library</option>
+                <option>Transport</option>
+                <option>Infrastructure</option>
+                <option>Other</option>
+            </select>
+
+            <label for="subject">Complaint Subject</label>
+            <input type="text" id="subject"
+                   placeholder="Enter complaint subject" required>
+
+            <label for="description">Description</label>
+            <textarea id="description"
+                placeholder="Describe your complaint"
+                required></textarea>
+
+            <button type="submit">Submit Complaint</button>
+
+        </form>
+
+        <p class="message" id="message" role="status"></p>
+    </section>
+
+    <section class="card" id="track">
+        <h2>Track Your Complaint</h2>
+
+        <label for="trackId">Complaint ID</label>
+        <input type="text" id="trackId"
+               placeholder="Enter complaint ID">
+
+        <button type="button" onclick="trackComplaint()">
+            Track Status
+        </button>
+
+        <div id="trackResult" aria-live="polite"></div>
+    </section>
+
+</main>
+
+<footer>
+    <p>&copy; 2026 College Complaint Management System</p>
+    <p>DevOps Project</p>
+</footer>
+
+<script>
+    const form = document.getElementById("complaintForm");
+
+    function getComplaints() {
+        return JSON.parse(
+            localStorage.getItem("complaints") || "[]"
+        );
+    }
+
+    form.addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const complaints = getComplaints();
+
+        const id = "CMP-" +
+            Date.now() + "-" +
+            Math.floor(Math.random() * 10000);
+
+        const complaint = {
+            id: id,
+            name: document.getElementById("name").value,
+            studentId: document.getElementById("studentId").value,
+            email: document.getElementById("email").value,
+            department: document.getElementById("department").value,
+            category: document.getElementById("category").value,
+            subject: document.getElementById("subject").value,
+            description: document.getElementById("description").value,
+            status: "Pending"
+        };
+
+        complaints.push(complaint);
+
+        localStorage.setItem(
+            "complaints",
+            JSON.stringify(complaints)
+        );
+
+        document.getElementById("message").textContent =
+            "Complaint submitted! Your ID is: " + id;
+
+        document.getElementById("trackId").value = id;
+
+        form.reset();
+    });
+
+    function trackComplaint() {
+        const id = document.getElementById("trackId")
+            .value.trim();
+
+        const complaints = getComplaints();
+
+        const complaint = complaints.find(
+            item => item.id === id
+        );
+
+        const result = document.getElementById("trackResult");
+        result.replaceChildren();
+
+        if (!complaint) {
+            result.textContent = "Complaint not found!";
+            return;
+        }
+
+        const box = document.createElement("div");
+        box.className = "complaint";
+
+        function addDetail(label, value) {
+            const paragraph = document.createElement("p");
+            const strong = document.createElement("strong");
+            strong.textContent = label + ": ";
+            paragraph.append(strong, document.createTextNode(value));
+            box.appendChild(paragraph);
+        }
+
+        addDetail("Complaint ID", complaint.id);
+        addDetail("Subject", complaint.subject);
+        addDetail("Category", complaint.category);
+        addDetail("Status", complaint.status);
+
+        result.appendChild(box);
+    }
+</script>
+
+</body>
+</html>
