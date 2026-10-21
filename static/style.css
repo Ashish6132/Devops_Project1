@@ -116,3 +116,44 @@ footer {
         margin: 10px 0;
     }
 }
+/* Login and Registration Page Styling */
+
+.auth-container {
+    max-width: 420px;
+    margin: 70px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+}
+
+.auth-container h2 {
+    text-align: center;
+    color: #1e3a5f;
+    margin-bottom: 25px;
+}
+
+.auth-container input {
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.auth-container button {
+    width: 100%;
+    background-color: #1e3a5f;
+    transition: background-color 0.3s;
+}
+
+.auth-container button:hover {
+    background-color: #2563eb;
+}
+
+.auth-container p {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.auth-container a {
+    color: #2563eb;
+    text-decoration: none;
+}
