@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+
     <meta name="viewport"
           content="width=device-width, initial-scale=1.0">
 
@@ -16,8 +18,12 @@
         }
 
         body {
-            background: linear-gradient(135deg,
-                        #123c75, #3498db);
+            background: linear-gradient(
+                135deg,
+                #123c75,
+                #3498db
+            );
+
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -31,8 +37,9 @@
             border-radius: 12px;
             width: 100%;
             max-width: 400px;
+
             box-shadow: 0 10px 30px
-                        rgba(0,0,0,0.2);
+                        rgba(0, 0, 0, 0.2);
         }
 
         h2 {
@@ -53,7 +60,7 @@
             font-weight: bold;
         }
 
-        input, select {
+        input {
             width: 100%;
             padding: 12px;
             border: 1px solid #ccc;
@@ -61,7 +68,7 @@
             font-size: 15px;
         }
 
-        input:focus, select:focus {
+        input:focus {
             outline: 2px solid #3498db;
         }
 
@@ -86,15 +93,73 @@
             margin-top: 20px;
         }
 
+        .links p {
+            margin-top: 12px;
+        }
+
         .links a {
             color: #123c75;
             text-decoration: none;
         }
 
+        .links a:hover {
+            text-decoration: underline;
+        }
+
         .error {
             color: #c0392b;
+            background: #fdecea;
+            padding: 10px;
+            border-radius: 6px;
             text-align: center;
             margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .success {
+            color: #155724;
+            background: #d4edda;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .password-box {
+            position: relative;
+        }
+
+        .password-box input {
+            padding-right: 65px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: auto;
+            margin: 0;
+            padding: 5px;
+            background: transparent;
+            color: #123c75;
+            font-size: 13px;
+        }
+
+        .toggle-password:hover {
+            background: transparent;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .login-box {
+                padding: 25px;
+            }
+
+            h2 {
+                font-size: 22px;
+            }
         }
     </style>
 </head>
@@ -109,35 +174,71 @@
             Student & Admin Login
         </p>
 
-        {% if error %}
-        <p class="error">{{ error }}</p>
-        {% endif %}
+        <!-- FLASH MESSAGES -->
 
-        <form method="POST" action="{{ url_for('login') }}">
+        {% with messages = get_flashed_messages() %}
 
-            <label for="role">Login As</label>
-            <select name="role" id="role" required>
-                <option value="student">Student</option>
-                <option value="admin">Admin</option>
-            </select>
+            {% if messages %}
 
-            <label for="username">
-                Student ID / Username
+                {% for message in messages %}
+
+                    <div class="error" role="alert">
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            {% endif %}
+
+        {% endwith %}
+
+        <!-- LOGIN FORM -->
+
+        <form method="POST"
+              action="{{ url_for('login') }}">
+
+            <!-- EMAIL -->
+
+            <label for="email">
+                Email Address
             </label>
 
-            <input type="text"
-                   id="username"
-                   name="username"
-                   placeholder="Enter username"
-                   required>
+            <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="Enter registered email"
+                autocomplete="email"
+                required
+            >
 
-            <label for="password">Password</label>
+            <!-- PASSWORD -->
 
-            <input type="password"
-                   id="password"
-                   name="password"
-                   placeholder="Enter password"
-                   required>
+            <label for="password">
+                Password
+            </label>
+
+            <div class="password-box">
+
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    placeholder="Enter password"
+                    autocomplete="current-password"
+                    required
+                >
+
+                <button
+                    type="button"
+                    class="toggle-password"
+                    onclick="togglePassword()">
+                    Show
+                </button>
+
+            </div>
+
+            <!-- LOGIN BUTTON -->
 
             <button type="submit">
                 Login
@@ -145,17 +246,47 @@
 
         </form>
 
+        <!-- LINKS -->
+
         <div class="links">
-            <p>New Student?
-                <a href="/register">Register Here</a>
+
+            <p>
+                New Student?
+                <a href="{{ url_for('register') }}">
+                    Register Here
+                </a>
             </p>
 
-            <p style="margin-top:12px;">
-                <a href="/">Back to Home</a>
+            <p>
+                <a href="{{ url_for('home') }}">
+                    Back to Home
+                </a>
             </p>
+
         </div>
 
     </div>
+
+    <!-- JAVASCRIPT -->
+
+    <script>
+        function togglePassword() {
+
+            const password =
+                document.getElementById("password");
+
+            const button =
+                document.querySelector(".toggle-password");
+
+            if (password.type === "password") {
+                password.type = "text";
+                button.textContent = "Hide";
+            } else {
+                password.type = "password";
+                button.textContent = "Show";
+            }
+        }
+    </script>
 
 </body>
 </html>
