@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Complaints | College Complaint System</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f7fc;
+            color: #263238;
+        }
+
+        .navbar {
+            background: #163b73;
+            color: white;
+            padding: 18px 7%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .navbar h2 {
+            margin: 0;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 18px;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1050px;
+            margin: 35px auto;
+        }
+
+        .card {
+            background: white;
+            padding: 28px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px #00000012;
+            margin-bottom: 30px;
+        }
+
+        h1, h2 {
+            color: #163b73;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccd5e0;
+            border-radius: 7px;
+            font-size: 15px;
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: #1769d2;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .btn:hover {
+            background: #104e9e;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 600px;
+        }
+
+        th, td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid #e2e7ef;
+        }
+
+        th {
+            background: #163b73;
+            color: white;
+        }
+
+        .status {
+            padding: 6px 10px;
+            border-radius: 15px;
+            font-size: 13px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .in-progress {
+            background: #d6eaff;
+            color: #0759a3;
+        }
+
+        .resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .message {
+            padding: 12px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            background: #e3f2fd;
+        }
+
+        @media (max-width: 600px) {
+            .card {
+                padding: 18px;
+            }
+
+            .navbar a {
+                margin-left: 0;
+                margin-right: 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="navbar">
+        <h2>College Complaint System</h2>
+        <div>
+            <a href="{{ url_for('dashboard') }}">
+                Dashboard
+            </a>
+            <a href="{{ url_for('complaints') }}">
+                Complaints
+            </a>
+            <a href="{{ url_for('logout') }}">
+                Logout
+            </a>
+        </div>
+    </nav>
+
+    <div class="container">
+
+        <h1>Complaint Management</h1>
+        <p>Submit and track your college complaints.</p>
+
+        <div class="card">
+            <h2>Register New Complaint</h2>
+
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="message">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST"
+                  action="{{ url_for('complaints') }}">
+
+                <div class="form-group">
+                    <label for="title">
+                        Complaint Title
+                    </label>
+                    <input type="text"
+                           id="title"
+                           name="title"
+                           placeholder="Enter complaint title"
+                           maxlength="150"
+                           required>
+                </div>
+
+                <div class="form-group">
+                    <label for="category">
+                        Complaint Category
+                    </label>
+                    <select id="category"
+                            name="category"
+                            required>
+                        <option value="">
+                            Select Category
+                        </option>
+                        <option value="Academic">
+                            Academic
+                        </option>
+                        <option value="Hostel">
+                            Hostel
+                        </option>
+                        <option value="Library">
+                            Library
+                        </option>
+                        <option value="Infrastructure">
+                            Infrastructure
+                        </option>
+                        <option value="Transport">
+                            Transport
+                        </option>
+                        <option value="Other">
+                            Other
+                        </option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">
+                        Complaint Description
+                    </label>
+                    <textarea id="description"
+                              name="description"
+                              placeholder="Describe your problem"
+                              maxlength="3000"
+                              required></textarea>
+                </div>
+
+                <button type="submit" class="btn">
+                    Submit Complaint
+                </button>
+
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>My Complaints</h2>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for complaint in complaints %}
+                        <tr>
+                            <td>{{ complaint.id }}</td>
+                            <td>{{ complaint.title }}</td>
+                            <td>{{ complaint.category }}</td>
+
+                            <td>
+                                {% set status =
+                                    complaint.status|default('Pending') %}
+
+                                {% if status == 'Resolved' %}
+                                    <span class="status resolved">
+                                        Resolved
+                                    </span>
+                                {% elif status == 'In Progress' %}
+                                    <span class="status in-progress">
+                                        In Progress
+                                    </span>
+                                {% else %}
+                                    <span class="status pending">
+                                        Pending
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {{ complaint.created_at|default('N/A') }}
+                            </td>
+                        </tr>
+
+                        {% else %}
+                        <tr>
+                            <td colspan="5"
+                                style="text-align:center;">
+                                No complaints submitted yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
