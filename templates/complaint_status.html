@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Complaint Status | College Complaint System</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fc;
+            color: #333;
+        }
+
+        .navbar {
+            background: #163b73;
+            color: white;
+            padding: 20px 7%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .navbar h2 {
+            font-size: 21px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            font-size: 15px;
+        }
+
+        .navbar a:hover {
+            color: #90caf9;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1150px;
+            margin: 35px auto;
+        }
+
+        .page-title {
+            color: #163b73;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px #00000012;
+        }
+
+        .stat-card h3 {
+            font-size: 30px;
+            color: #163b73;
+            margin-bottom: 10px;
+        }
+
+        .stat-card p {
+            font-size: 15px;
+            color: #666;
+        }
+
+        .table-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px #00000012;
+        }
+
+        .table-card h2 {
+            color: #163b73;
+            margin-bottom: 20px;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+
+        th {
+            background: #163b73;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f8faff;
+        }
+
+        .status {
+            padding: 7px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .progress {
+            background: #d6eaff;
+            color: #0759a3;
+        }
+
+        .resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #1769d2;
+            color: white;
+            padding: 11px 20px;
+            text-decoration: none;
+            border-radius: 7px;
+            margin-top: 25px;
+        }
+
+        .btn:hover {
+            background: #104e9e;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 35px;
+            color: #777;
+        }
+
+        @media (max-width: 600px) {
+            .navbar {
+                padding: 18px;
+            }
+
+            .navbar a {
+                margin-left: 0;
+                margin-right: 12px;
+            }
+
+            .table-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- NAVIGATION BAR -->
+
+    <nav class="navbar">
+
+        <h2>College Complaint System</h2>
+
+        <div>
+            <a href="{{ url_for('dashboard') }}">
+                Dashboard
+            </a>
+
+            <a href="{{ url_for('complaints') }}">
+                Submit Complaint
+            </a>
+
+            <a href="{{ url_for('complaint_status') }}">
+                Track Status
+            </a>
+
+            <a href="{{ url_for('logout') }}">
+                Logout
+            </a>
+        </div>
+
+    </nav>
+
+
+    <div class="container">
+
+        <h1 class="page-title">
+            My Complaint Status
+        </h1>
+
+        <p class="subtitle">
+            Track the progress of your submitted complaints.
+        </p>
+
+
+        <!-- STATISTICS -->
+
+        <div class="stats">
+
+            <div class="stat-card">
+                <h3>{{ total_complaints }}</h3>
+                <p>Total Complaints</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>{{ pending }}</h3>
+                <p>Pending</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>{{ in_progress }}</h3>
+                <p>In Progress</p>
+            </div>
+
+            <div class="stat-card">
+                <h3>{{ resolved }}</h3>
+                <p>Resolved</p>
+            </div>
+
+        </div>
+
+
+        <!-- COMPLAINT STATUS TABLE -->
+
+        <div class="table-card">
+
+            <h2>Complaint Tracking Details</h2>
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Complaint ID</th>
+                            <th>Title</th>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        {% for complaint in complaints %}
+
+                        <tr>
+
+                            <td>
+                                #{{ complaint.id }}
+                            </td>
+
+                            <td>
+                                {{ complaint.title }}
+                            </td>
+
+                            <td>
+                                {{ complaint.category }}
+                            </td>
+
+                            <td>
+                                {{ complaint.description }}
+                            </td>
+
+                            <td>
+                                {{ complaint.created_at }}
+                            </td>
+
+                            <td>
+
+                                {% if complaint.status == 'Pending' %}
+
+                                    <span class="status pending">
+                                        Pending
+                                    </span>
+
+                                {% elif complaint.status == 'In Progress' %}
+
+                                    <span class="status progress">
+                                        In Progress
+                                    </span>
+
+                                {% elif complaint.status == 'Resolved' %}
+
+                                    <span class="status resolved">
+                                        Resolved
+                                    </span>
+
+                                {% else %}
+
+                                    {{ complaint.status }}
+
+                                {% endif %}
+
+                            </td>
+
+                        </tr>
+
+                        {% else %}
+
+                        <tr>
+                            <td colspan="6" class="empty">
+                                No complaints found.
+                            </td>
+                        </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <a href="{{ url_for('complaints') }}"
+               class="btn">
+                + Submit New Complaint
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+</html>
