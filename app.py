@@ -1,10 +1,16 @@
 import os
 import sqlite3
+from datetime import datetime
 from functools import wraps
 
 from flask import (
-    Flask, render_template, request,
-    redirect, url_for, session, flash
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash
 )
 
 from werkzeug.security import (
@@ -17,16 +23,20 @@ from werkzeug.security import (
 
 app = Flask(__name__)
 
-app.secret_key = os.environ.get(
+app.config["SECRET_KEY"] = os.environ.get(
     "SECRET_KEY",
     "development-key-change-me"
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATABASE = os.path.join(BASE_DIR, "complaints.db")
+
+DATABASE = os.path.join(
+    BASE_DIR,
+    "complaints.db"
+)
 
 
-# =============== DATABASE ===============
+# =============== DATABASE CONNECTION ===============
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -35,7 +45,10 @@ def get_db():
     return conn
 
 
+# =============== DATABASE INITIALIZATION ===============
+
 def init_db():
+
     with get_db() as conn:
 
         conn.execute("""
@@ -56,34 +69,84 @@ def init_db():
                 category TEXT NOT NULL,
                 description TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'Pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(user_id) REFERENCES users(id)
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id)
+                    REFERENCES users(id)
             )
+        """)
+
+        # Support old database structure
+        columns = {
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(complaints)"
+            ).fetchall()
+        }
+
+        if "user_id" not in columns:
+            conn.execute("""
+                ALTER TABLE complaints
+                ADD COLUMN user_id INTEGER
+            """)
+
+        if "created_at" not in columns:
+            conn.execute("""
+                ALTER TABLE complaints
+                ADD COLUMN created_at TEXT
+            """)
+
+        # Copy old complaint dates
+        columns = {
+            row["name"]
+            for row in conn.execute(
+                "PRAGMA table_info(complaints)"
+            ).fetchall()
+        }
+
+        if "date" in columns:
+            conn.execute("""
+                UPDATE complaints
+                SET created_at = date
+                WHERE created_at IS NULL
+            """)
+
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS
+            idx_complaints_user_id
+            ON complaints(user_id)
         """)
 
 
 # =============== AUTHENTICATION ===============
 
 def login_required(func):
+
     @wraps(func)
     def wrapper(*args, **kwargs):
+
         if "user_id" not in session:
             flash("Please login first.")
             return redirect(url_for("login"))
+
         return func(*args, **kwargs)
+
     return wrapper
 
 
 def admin_required(func):
+
     @wraps(func)
     def wrapper(*args, **kwargs):
+
         if (
             "user_id" not in session
             or session.get("role") != "admin"
         ):
             flash("Admin access required.")
             return redirect(url_for("login"))
+
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -94,28 +157,42 @@ def home():
     return render_template("index.html")
 
 
-# =============== REGISTER ===============
+# =============== REGISTRATION ===============
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
 
     if request.method == "POST":
 
-        name = request.form.get("name", "").strip()
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
+        name = request.form.get(
+            "name", ""
+        ).strip()
+
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get(
+            "password", ""
+        )
 
         if not name or not email or len(password) < 8:
+
             flash(
-                "Enter valid details and a password "
+                "Enter valid details and password "
                 "of at least 8 characters."
             )
+
             return redirect(url_for("register"))
 
-        hashed_password = generate_password_hash(password)
+        hashed_password = generate_password_hash(
+            password
+        )
 
         try:
+
             with get_db() as conn:
+
                 conn.execute("""
                     INSERT INTO users
                     (name, email, password, role)
@@ -126,10 +203,14 @@ def register():
                     hashed_password
                 ))
 
-            flash("Registration successful! Please login.")
+            flash(
+                "Registration successful! Please login."
+            )
+
             return redirect(url_for("login"))
 
         except sqlite3.IntegrityError:
+
             flash("Email already registered.")
 
     return render_template("register.html")
@@ -142,17 +223,24 @@ def login():
 
     if request.method == "POST":
 
-        email = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
+        email = request.form.get(
+            "email", ""
+        ).strip().lower()
+
+        password = request.form.get(
+            "password", ""
+        )
 
         with get_db() as conn:
+
             user = conn.execute("""
                 SELECT * FROM users
                 WHERE email = ?
             """, (email,)).fetchone()
 
         if user and check_password_hash(
-            user["password"], password
+            user["password"],
+            password
         ):
 
             session.clear()
@@ -171,6 +259,35 @@ def login():
     return render_template("login.html")
 
 
+# =============== COMPLAINT STATISTICS ===============
+
+def get_statistics(complaints_list):
+
+    total = len(complaints_list)
+
+    pending = sum(
+        1 for complaint in complaints_list
+        if complaint["status"] == "Pending"
+    )
+
+    in_progress = sum(
+        1 for complaint in complaints_list
+        if complaint["status"] == "In Progress"
+    )
+
+    resolved = sum(
+        1 for complaint in complaints_list
+        if complaint["status"] == "Resolved"
+    )
+
+    return {
+        "total_complaints": total,
+        "pending": pending,
+        "in_progress": in_progress,
+        "resolved": resolved
+    }
+
+
 # =============== STUDENT DASHBOARD ===============
 
 @app.route("/dashboard")
@@ -181,39 +298,29 @@ def dashboard():
         return redirect(url_for("admin"))
 
     with get_db() as conn:
+
         rows = conn.execute("""
-            SELECT * FROM complaints
+            SELECT *
+            FROM complaints
             WHERE user_id = ?
             ORDER BY id DESC
-        """, (session["user_id"],)).fetchall()
+        """, (
+            session["user_id"],
+        )).fetchall()
 
-    complaints_list = [dict(row) for row in rows]
+    complaints_list = [
+        dict(row) for row in rows
+    ]
 
-    total = len(complaints_list)
-
-    pending = sum(
-        1 for c in complaints_list
-        if c["status"] == "Pending"
-    )
-
-    in_progress = sum(
-        1 for c in complaints_list
-        if c["status"] == "In Progress"
-    )
-
-    resolved = sum(
-        1 for c in complaints_list
-        if c["status"] == "Resolved"
+    statistics = get_statistics(
+        complaints_list
     )
 
     return render_template(
         "dashboard.html",
-        student_name=session.get("name"),
+        student_name=session.get("name", "Student"),
         complaints=complaints_list,
-        total_complaints=total,
-        pending=pending,
-        in_progress=in_progress,
-        resolved=resolved
+        **statistics
     )
 
 
@@ -228,8 +335,14 @@ def complaints():
 
     if request.method == "POST":
 
-        title = request.form.get("title", "").strip()
-        category = request.form.get("category", "").strip()
+        title = request.form.get(
+            "title", ""
+        ).strip()
+
+        category = request.form.get(
+            "category", ""
+        ).strip()
+
         description = request.form.get(
             "description", ""
         ).strip()
@@ -250,40 +363,98 @@ def complaints():
             or not description
             or len(description) > 3000
         ):
-            flash("Please enter valid complaint details.")
+
+            flash(
+                "Please enter valid complaint details."
+            )
+
             return redirect(url_for("complaints"))
 
+        now = datetime.now().strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+
         with get_db() as conn:
-            conn.execute("""
-                INSERT INTO complaints
-                (
-                    user_id,
+
+            columns = {
+                row["name"]
+                for row in conn.execute(
+                    "PRAGMA table_info(complaints)"
+                ).fetchall()
+            }
+
+            if "student_id" in columns and "date" in columns:
+
+                # Compatibility with old database
+                conn.execute("""
+                    INSERT INTO complaints
+                    (
+                        student_id,
+                        user_id,
+                        title,
+                        category,
+                        description,
+                        status,
+                        date,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(session["user_id"]),
+                    session["user_id"],
                     title,
                     category,
                     description,
-                    status
-                )
-                VALUES (?, ?, ?, ?, 'Pending')
-            """, (
-                session["user_id"],
-                title,
-                category,
-                description
-            ))
+                    "Pending",
+                    now,
+                    now
+                ))
 
-        flash("Complaint submitted successfully!")
+            else:
+
+                # New database structure
+                conn.execute("""
+                    INSERT INTO complaints
+                    (
+                        user_id,
+                        title,
+                        category,
+                        description,
+                        status,
+                        created_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    session["user_id"],
+                    title,
+                    category,
+                    description,
+                    "Pending",
+                    now
+                ))
+
+        flash(
+            "Complaint submitted successfully!"
+        )
+
         return redirect(url_for("complaints"))
 
     with get_db() as conn:
+
         rows = conn.execute("""
-            SELECT * FROM complaints
+            SELECT *
+            FROM complaints
             WHERE user_id = ?
             ORDER BY id DESC
-        """, (session["user_id"],)).fetchall()
+        """, (
+            session["user_id"],
+        )).fetchall()
 
     return render_template(
         "complaints.html",
-        complaints=[dict(row) for row in rows]
+        complaints=[
+            dict(row) for row in rows
+        ]
     )
 
 
@@ -297,6 +468,7 @@ def complaint_status():
         return redirect(url_for("admin"))
 
     with get_db() as conn:
+
         rows = conn.execute("""
             SELECT
                 id,
@@ -308,34 +480,22 @@ def complaint_status():
             FROM complaints
             WHERE user_id = ?
             ORDER BY id DESC
-        """, (session["user_id"],)).fetchall()
+        """, (
+            session["user_id"],
+        )).fetchall()
 
-    complaints_list = [dict(row) for row in rows]
+    complaints_list = [
+        dict(row) for row in rows
+    ]
 
-    total = len(complaints_list)
-
-    pending = sum(
-        1 for c in complaints_list
-        if c["status"] == "Pending"
-    )
-
-    in_progress = sum(
-        1 for c in complaints_list
-        if c["status"] == "In Progress"
-    )
-
-    resolved = sum(
-        1 for c in complaints_list
-        if c["status"] == "Resolved"
+    statistics = get_statistics(
+        complaints_list
     )
 
     return render_template(
         "complaint_status.html",
         complaints=complaints_list,
-        total_complaints=total,
-        pending=pending,
-        in_progress=in_progress,
-        resolved=resolved
+        **statistics
     )
 
 
@@ -346,47 +506,34 @@ def complaint_status():
 def admin():
 
     with get_db() as conn:
+
         rows = conn.execute("""
             SELECT
                 complaints.*,
                 users.name AS student_name,
                 users.email AS student_email
             FROM complaints
-            JOIN users
-            ON complaints.user_id = users.id
+            LEFT JOIN users
+                ON complaints.user_id = users.id
             ORDER BY complaints.id DESC
         """).fetchall()
 
-    complaints_list = [dict(row) for row in rows]
+    complaints_list = [
+        dict(row) for row in rows
+    ]
 
-    total = len(complaints_list)
-
-    pending = sum(
-        1 for c in complaints_list
-        if c["status"] == "Pending"
-    )
-
-    in_progress = sum(
-        1 for c in complaints_list
-        if c["status"] == "In Progress"
-    )
-
-    resolved = sum(
-        1 for c in complaints_list
-        if c["status"] == "Resolved"
+    statistics = get_statistics(
+        complaints_list
     )
 
     return render_template(
         "admin.html",
         complaints=complaints_list,
-        total_complaints=total,
-        pending=pending,
-        in_progress=in_progress,
-        resolved=resolved
+        **statistics
     )
 
 
-# =============== UPDATE STATUS ===============
+# =============== UPDATE COMPLAINT STATUS ===============
 
 @app.route(
     "/update-status/<int:complaint_id>",
@@ -395,7 +542,9 @@ def admin():
 @admin_required
 def update_status(complaint_id):
 
-    status = request.form.get("status", "")
+    status = request.form.get(
+        "status", ""
+    )
 
     allowed_statuses = {
         "Pending",
@@ -404,15 +553,21 @@ def update_status(complaint_id):
     }
 
     if status not in allowed_statuses:
+
         flash("Invalid complaint status.")
+
         return redirect(url_for("admin"))
 
     with get_db() as conn:
+
         result = conn.execute("""
             UPDATE complaints
             SET status = ?
             WHERE id = ?
-        """, (status, complaint_id))
+        """, (
+            status,
+            complaint_id
+        ))
 
     if result.rowcount == 0:
         flash("Complaint not found.")
@@ -429,6 +584,7 @@ def update_status(complaint_id):
 def logout():
 
     session.clear()
+
     flash("Logged out successfully.")
 
     return redirect(url_for("login"))
@@ -437,7 +593,9 @@ def logout():
 # =============== RUN APPLICATION ===============
 
 if __name__ == "__main__":
+
     init_db()
+
     app.run(
         host="127.0.0.1",
         port=5000,
