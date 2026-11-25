@@ -6,22 +6,27 @@ from flask import (
     Flask, render_template, request,
     redirect, url_for, session, flash
 )
+
 from werkzeug.security import (
     generate_password_hash,
     check_password_hash
 )
 
+
+# =============== FLASK SETUP ===============
+
 app = Flask(__name__)
 
 app.secret_key = os.environ.get(
-    "SECRET_KEY", "development-key-change-me"
+    "SECRET_KEY",
+    "development-key-change-me"
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATABASE = os.path.join(BASE_DIR, "complaints.db")
 
 
-# ---------------- DATABASE ----------------
+# =============== DATABASE ===============
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -57,7 +62,7 @@ def init_db():
         """)
 
 
-# ---------------- AUTHENTICATION ----------------
+# =============== AUTHENTICATION ===============
 
 def login_required(func):
     @wraps(func)
@@ -72,21 +77,24 @@ def login_required(func):
 def admin_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if session.get("role") != "admin":
+        if (
+            "user_id" not in session
+            or session.get("role") != "admin"
+        ):
             flash("Admin access required.")
             return redirect(url_for("login"))
         return func(*args, **kwargs)
     return wrapper
 
 
-# ---------------- HOME ----------------
+# =============== HOME ===============
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 
-# ---------------- REGISTER ----------------
+# =============== REGISTER ===============
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -98,7 +106,10 @@ def register():
         password = request.form.get("password", "")
 
         if not name or not email or len(password) < 8:
-            flash("Enter valid details and a password of at least 8 characters.")
+            flash(
+                "Enter valid details and a password "
+                "of at least 8 characters."
+            )
             return redirect(url_for("register"))
 
         hashed_password = generate_password_hash(password)
@@ -106,9 +117,14 @@ def register():
         try:
             with get_db() as conn:
                 conn.execute("""
-                    INSERT INTO users (name, email, password, role)
+                    INSERT INTO users
+                    (name, email, password, role)
                     VALUES (?, ?, ?, 'student')
-                """, (name, email, hashed_password))
+                """, (
+                    name,
+                    email,
+                    hashed_password
+                ))
 
             flash("Registration successful! Please login.")
             return redirect(url_for("login"))
@@ -119,7 +135,7 @@ def register():
     return render_template("register.html")
 
 
-# ---------------- LOGIN ----------------
+# =============== LOGIN ===============
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -131,13 +147,16 @@ def login():
 
         with get_db() as conn:
             user = conn.execute("""
-                SELECT * FROM users WHERE email = ?
+                SELECT * FROM users
+                WHERE email = ?
             """, (email,)).fetchone()
 
         if user and check_password_hash(
             user["password"], password
         ):
+
             session.clear()
+
             session["user_id"] = user["id"]
             session["name"] = user["name"]
             session["role"] = user["role"]
@@ -152,7 +171,7 @@ def login():
     return render_template("login.html")
 
 
-# ---------------- STUDENT DASHBOARD ----------------
+# =============== STUDENT DASHBOARD ===============
 
 @app.route("/dashboard")
 @login_required
@@ -162,13 +181,13 @@ def dashboard():
         return redirect(url_for("admin"))
 
     with get_db() as conn:
-        complaints_data = conn.execute("""
+        rows = conn.execute("""
             SELECT * FROM complaints
             WHERE user_id = ?
             ORDER BY id DESC
         """, (session["user_id"],)).fetchall()
 
-    complaints_list = [dict(row) for row in complaints_data]
+    complaints_list = [dict(row) for row in rows]
 
     total = len(complaints_list)
 
@@ -198,7 +217,7 @@ def dashboard():
     )
 
 
-# ---------------- COMPLAINTS ----------------
+# =============== COMPLAINT SUBMISSION ===============
 
 @app.route("/complaints", methods=["GET", "POST"])
 @login_required
@@ -211,17 +230,25 @@ def complaints():
 
         title = request.form.get("title", "").strip()
         category = request.form.get("category", "").strip()
-        description = request.form.get("description", "").strip()
+        description = request.form.get(
+            "description", ""
+        ).strip()
 
         allowed_categories = {
-            "Academic", "Hostel", "Library",
-            "Infrastructure", "Transport", "Other"
+            "Academic",
+            "Hostel",
+            "Library",
+            "Infrastructure",
+            "Transport",
+            "Other"
         }
 
         if (
-            not title or len(title) > 150
+            not title
+            or len(title) > 150
             or category not in allowed_categories
-            or not description or len(description) > 3000
+            or not description
+            or len(description) > 3000
         ):
             flash("Please enter valid complaint details.")
             return redirect(url_for("complaints"))
@@ -229,7 +256,13 @@ def complaints():
         with get_db() as conn:
             conn.execute("""
                 INSERT INTO complaints
-                (user_id, title, category, description, status)
+                (
+                    user_id,
+                    title,
+                    category,
+                    description,
+                    status
+                )
                 VALUES (?, ?, ?, ?, 'Pending')
             """, (
                 session["user_id"],
@@ -242,7 +275,7 @@ def complaints():
         return redirect(url_for("complaints"))
 
     with get_db() as conn:
-        complaints_data = conn.execute("""
+        rows = conn.execute("""
             SELECT * FROM complaints
             WHERE user_id = ?
             ORDER BY id DESC
@@ -250,11 +283,63 @@ def complaints():
 
     return render_template(
         "complaints.html",
-        complaints=[dict(row) for row in complaints_data]
+        complaints=[dict(row) for row in rows]
     )
 
 
-# ---------------- ADMIN DASHBOARD ----------------
+# =============== COMPLAINT STATUS ===============
+
+@app.route("/complaint-status")
+@login_required
+def complaint_status():
+
+    if session.get("role") == "admin":
+        return redirect(url_for("admin"))
+
+    with get_db() as conn:
+        rows = conn.execute("""
+            SELECT
+                id,
+                title,
+                category,
+                description,
+                status,
+                created_at
+            FROM complaints
+            WHERE user_id = ?
+            ORDER BY id DESC
+        """, (session["user_id"],)).fetchall()
+
+    complaints_list = [dict(row) for row in rows]
+
+    total = len(complaints_list)
+
+    pending = sum(
+        1 for c in complaints_list
+        if c["status"] == "Pending"
+    )
+
+    in_progress = sum(
+        1 for c in complaints_list
+        if c["status"] == "In Progress"
+    )
+
+    resolved = sum(
+        1 for c in complaints_list
+        if c["status"] == "Resolved"
+    )
+
+    return render_template(
+        "complaint_status.html",
+        complaints=complaints_list,
+        total_complaints=total,
+        pending=pending,
+        in_progress=in_progress,
+        resolved=resolved
+    )
+
+
+# =============== ADMIN DASHBOARD ===============
 
 @app.route("/admin")
 @admin_required
@@ -267,7 +352,8 @@ def admin():
                 users.name AS student_name,
                 users.email AS student_email
             FROM complaints
-            JOIN users ON complaints.user_id = users.id
+            JOIN users
+            ON complaints.user_id = users.id
             ORDER BY complaints.id DESC
         """).fetchall()
 
@@ -300,7 +386,7 @@ def admin():
     )
 
 
-# ---------------- UPDATE COMPLAINT STATUS ----------------
+# =============== UPDATE STATUS ===============
 
 @app.route(
     "/update-status/<int:complaint_id>",
@@ -312,7 +398,9 @@ def update_status(complaint_id):
     status = request.form.get("status", "")
 
     allowed_statuses = {
-        "Pending", "In Progress", "Resolved"
+        "Pending",
+        "In Progress",
+        "Resolved"
     }
 
     if status not in allowed_statuses:
@@ -334,17 +422,19 @@ def update_status(complaint_id):
     return redirect(url_for("admin"))
 
 
-# ---------------- LOGOUT ----------------
+# =============== LOGOUT ===============
 
 @app.route("/logout")
 @login_required
 def logout():
+
     session.clear()
     flash("Logged out successfully.")
+
     return redirect(url_for("login"))
 
 
-# ---------------- RUN APPLICATION ----------------
+# =============== RUN APPLICATION ===============
 
 if __name__ == "__main__":
     init_db()
